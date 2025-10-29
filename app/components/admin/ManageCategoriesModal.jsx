@@ -90,7 +90,7 @@ export default function ManageCategoriesModal({
                         <button 
                             onClick={handleAdd}
                             disabled={loading || !newCategoryName.trim()} // Disable if empty
-                            className="bg-primary text-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" // Added disabled cursor
+                            className="bg-zinc-800 text-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" // Added disabled cursor
                         >
                             {loading ? 'Adding...' : 'Add'}
                         </button>
@@ -102,7 +102,7 @@ export default function ManageCategoriesModal({
                  <div className="mt-6 text-right">
                       <button 
                           onClick={handleClose} 
-                          className="text-gray-600 hover:text-gray-800 font-medium py-2 px-4 rounded"
+                          className="text-gray-600 hover:text-zinc-800 font-medium py-2 px-4 rounded"
                       >
                          Close
                       </button>

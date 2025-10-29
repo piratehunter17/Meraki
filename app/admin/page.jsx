@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react'; // Added useCallback
+import Image from 'next/image';
 import { createClient } from '../../lib/supabase/client';
 import ManageCategoriesModal from '../components/admin/ManageCategoriesModal';
 

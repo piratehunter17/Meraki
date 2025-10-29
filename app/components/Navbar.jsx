@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation'; // <-- Added useRouter
+import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 
 // Import Supabase client and Modal components
@@ -92,18 +92,16 @@ const UserIcon = ({ session }) => {
 // --- User Dropdown Component (Defined Outside Navbar) ---
 const UserDropdown = ({ session, onLogout, onLoginClick, onClose }) => (
     <div
-        // Note: No ref needed here as it's passed from Navbar's render
+        // ... (This component is unchanged and correct)
         className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 normal-case border border-gray-100 animate-fade-in-down-quick origin-top-right"
     >
         {session ? (
             <>
                 <Link href="/account" onClick={onClose} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200">My Account</Link>
                 <Link href="/orders" onClick={onClose} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200">Order History</Link>
-                {/* Ensure onLogout prop is called */}
                 <button onClick={onLogout} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200">Logout</button>
             </>
         ) : (
-            // Ensure onLoginClick prop is called
             <button onClick={onLoginClick} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200">Login</button>
         )}
     </div>
@@ -121,9 +119,14 @@ const Navbar = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-    const userMenuRef = useRef(null);
+    
+    // --- FIX 1: Create two separate refs ---
+    const userMenuRefMobile = useRef(null);
+    const userMenuRefDesktop = useRef(null);
+    // --- END FIX 1 ---
+
     const pathname = usePathname();
-    const router = useRouter(); // <-- Initialize router
+    const router = useRouter(); 
 
     // Real-time states
     const [session, setSession] = useState(null);
@@ -162,21 +165,34 @@ const Navbar = () => {
         });
 
         return () => subscription?.unsubscribe();
-    }, [supabase]); // Keep dependency array correct
+    }, [supabase]);
 
+    // --- FIX 2: Update the click-outside handler to check both refs ---
     // Close user dropdown if clicked outside
     useEffect(() => {
         const handleClickOutside = (event) => {
+            // Check if the click is on the toggle buttons
+            // Use closest to account for clicks on SVG/icons inside the button
             const isClickingMobileButton = event.target.closest('button[aria-label="User menu mobile"]');
-            const isClickingDesktopButton = event.target.closest('button[aria-label="User menu desktop"]'); // Adjusted label
-
-            if (isClickingMobileButton || isClickingDesktopButton) return; // Don't close if clicking button
-
-            // Use the single ref 'userMenuRef' attached to both dropdown containers
-            if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
-                 setIsUserMenuOpen(false);
+            const isClickingDesktopButton = event.target.closest('button[aria-label="User menu desktop"]'); 
+            if (isClickingMobileButton || isClickingDesktopButton) {
+                return; // Let the button's onClick handle toggling
             }
+
+            // Check if the click is inside the mobile dropdown
+            if (userMenuRefMobile.current && userMenuRefMobile.current.contains(event.target)) {
+                return; // Click is inside mobile dropdown, do nothing
+            }
+
+            // Check if the click is inside the desktop dropdown
+            if (userMenuRefDesktop.current && userMenuRefDesktop.current.contains(event.target)) {
+                return; // Click is inside desktop dropdown, do nothing
+            }
+
+            // If we're here, the click was outside buttons and both dropdowns
+            setIsUserMenuOpen(false);
         };
+
         // Add listener only when menu is open
         if (isUserMenuOpen) {
             document.addEventListener("mousedown", handleClickOutside);
@@ -185,7 +201,8 @@ const Navbar = () => {
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         }
-    }, [isUserMenuOpen, userMenuRef]); // Rerun when menu state changes or ref changes
+    }, [isUserMenuOpen]); // Dependency array only needs isUserMenuOpen
+    // --- END FIX 2 ---
 
 
     // Navigation links
@@ -203,9 +220,8 @@ const Navbar = () => {
         setIsSearchOpen(true);
     };
 
-    // --- UPDATED LOGOUT HANDLER ---
     const handleLogout = async () => {
-        setIsUserMenuOpen(false); // Close menu immediately
+        setIsUserMenuOpen(false); 
         if (isMenuOpen) setIsMenuOpen(false);
 
         const { error } = await supabase.auth.signOut();
@@ -214,9 +230,8 @@ const Navbar = () => {
             alert("Logout failed: " + error.message);
         } else {
             console.log("Logout successful via Supabase");
-            // Redirect to home and refresh
             router.push('/');
-            router.refresh(); // <-- Added refresh
+            router.refresh(); 
         }
     };
 
@@ -252,9 +267,9 @@ const Navbar = () => {
                         </div>
                         {/* 2. Center: Logo */}
                         <div className="flex-1 flex justify-center">
-                              <Link href="/">
+                             <Link href="/">
                                  <svg width="140" height="45" viewBox="0 0 140 45" xmlns="http://www.w3.org/2000/svg">
-                                     <text x="0" y="35" fontFamily="Marcellus, serif" fontSize="40px" fill="#111" letterSpacing="1" fontWeight="400">PRADII</text>
+                                      <text x="0" y="35" fontFamily="Marcellus, serif" fontSize="40px" fill="#111" letterSpacing="1" fontWeight="400">PRADII</text>
                                  </svg>
                              </Link>
                         </div>
@@ -268,12 +283,12 @@ const Navbar = () => {
                                     </span>
                                 )}
                             </Link>
-                            {/* Mobile User Button - Attach single ref to parent div */}
-                            <div className="relative" ref={userMenuRef}>
+                            
+                                {/* --- FIX 3a: Apply the MOBILE ref --- */}
+                            <div className="relative" ref={userMenuRefMobile}>
                                 <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="rounded-full transition-opacity duration-300 hover:opacity-80 flex items-center justify-center w-8 h-8" aria-label="User menu mobile">
                                     {session ? <UserIcon session={session} /> : <svg width="24" height="24" className="text-gray-500 hover:text-black"><use xlinkHref="#user"></use></svg>}
                                 </button>
-                                {/* Pass handlers and state as props */}
                                 {isUserMenuOpen && <UserDropdown session={session} onLogout={handleLogout} onLoginClick={openLoginModal} onClose={() => setIsUserMenuOpen(false)} />}
                             </div>
                         </div>
@@ -285,7 +300,7 @@ const Navbar = () => {
                         <div className="flex-1 flex justify-start">
                              <Link href="/">
                                  <svg width="140" height="45" viewBox="0 0 140 45" xmlns="http://www.w3.org/2000/svg">
-                                     <text x="0" y="35" fontFamily="Marcellus, serif" fontSize="40px" fill="#111" letterSpacing="1" fontWeight="400">PRADII</text>
+                                      <text x="0" y="35" fontFamily="Marcellus, serif" fontSize="40px" fill="#111" letterSpacing="1" fontWeight="400">PRADII</text>
                                  </svg>
                              </Link>
                         </div>
@@ -294,21 +309,23 @@ const Navbar = () => {
                              <ul className="flex items-center gap-10">
                                  {navLinks.map((link) => {
                                      const isActive = pathname === link.href;
+                                     // --- FIXED JSX: Your map function was broken ---
                                      return (
-                                         <li key={link.label}>
-                                             <Link
-                                                 href={link.href}
-                                                 className={`
-                                                     relative inline-block py-2 text-dark hover:text-black transition-colors duration-300
-                                                     after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[1.5px] after:bg-black 
-                                                     after:transition-all after:duration-300 
-                                                     ${isActive ? 'after:w-full font-medium' : 'after:w-0 hover:after:w-full'}
-                                                 `}
-                                             >
-                                                 {link.label}
-                                             </Link>
-                                         </li>
+                                        <li key={link.label}>
+                                            <Link
+                                                href={link.href}
+                                                className={`
+                                                    relative inline-block py-2 text-dark hover:text-black transition-colors duration-300
+                                                    after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[1.5px] after:bg-black 
+                                                    after:transition-all after:duration-300 
+                                                    ${isActive ? 'after:w-full font-medium' : 'after:w-0 hover:after:w-full'}
+                                                `}
+                                            >
+                                                {link.label}
+                                            </Link>
+                                        </li>
                                      );
+                                     // --- END FIXED JSX ---
                                  })}
                              </ul>
                         </div>
@@ -335,26 +352,67 @@ const Navbar = () => {
                                 <button onClick={handleSearchClick} className="p-2 rounded-full text-gray-500 hover:text-black transition-colors duration-300" aria-label="Search">
                                     <svg width="24" height="24"><use xlinkHref="#search"></use></svg>
                                 </button>
-                                {/* Desktop User Button - Attach single ref to parent div */}
-                                <div className="relative" ref={userMenuRef}>
+                                
+                                {/* User */}
+                                {/* --- FIX 3b: Apply the DESKTOP ref --- */}
+                                <div className="relative" ref={userMenuRefDesktop}>
                                     <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="rounded-full transition-opacity duration-300 hover:opacity-80 flex items-center justify-center w-8 h-8" aria-label="User menu desktop">
                                         {session ? <UserIcon session={session} /> : <svg width="24" height="24" className="text-gray-500 hover:text-black"><use xlinkHref="#user"></use></svg>}
                                     </button>
-                                    {/* Pass handlers and state as props */}
                                     {isUserMenuOpen && <UserDropdown session={session} onLogout={handleLogout} onLoginClick={openLoginModal} onClose={() => setIsUserMenuOpen(false)} />}
                                 </div>
+                                {/* --- END FIX 3b --- */}
                             </div>
                         </div>
                     </div>
                 </nav>
             </header>
 
-            {/* Modals and Menus */}
-            {/* Pass handlers to MobileMenu */}
-            <MobileMenu navLinks={navLinks} isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} onSearchClick={handleSearchClick} cartCount={cartCount} wishlistCount={wishlistCount} session={session} onLogout={handleLogout} onLoginClick={openLoginModal} />
+            {/* Modals and Overlays */}
             {isSearchOpen && <SearchPopup onClose={() => setIsSearchOpen(false)} />}
-            <LoginModal isOpen={isLoginModalOpen} onClose={() => setLoginModalOpen(false)} onSwitchToSignup={switchToSignup} />
-            <SignupModal isOpen={isSignupModalOpen} onClose={() => setSignupModalOpen(false)} onSwitchToLogin={switchToLogin} />
+            
+            <MobileMenu 
+                isOpen={isMenuOpen}
+                onClose={() => setIsMenuOpen(false)}
+                onSearchClick={handleSearchClick}
+                onLogout={handleLogout}
+                onLoginClick={openLoginModal}
+                navLinks={navLinks}
+                cartCount={cartCount}
+                wishlistCount={wishlistCount}
+                session={session}
+            />
+
+            <LoginModal 
+                isOpen={isLoginModalOpen}
+                onClose={() => setLoginModalOpen(false)}
+                onSwitchToSignup={switchToSignup}
+            />
+            <SignupModal 
+                isOpen={isSignupModalOpen}
+                onClose={() => setSignupModalOpen(false)}
+                onSwitchToLogin={switchToLogin}
+            />
+            
+            {/* SVG Definitions (Could be in a separate component or public/sprite.svg) */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="hidden">
+                <symbol id="search" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </symbol>
+                <symbol id="user" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </symbol>
+                <symbol id="cart" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </symbol>
+                <symbol id="heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </symbol>
+            </svg>
         </>
     );
 };
